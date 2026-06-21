@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+crm.db
+test_*.py
+bench_*.py
+inspeccionar_excel.py
+analizar_ventas.py
+servidor.py

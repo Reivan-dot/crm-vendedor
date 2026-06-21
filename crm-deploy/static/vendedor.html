@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRM — Mis Clientes</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      padding-bottom: 30px;
+    }
+    header {
+      background: #1a73e8;
+      color: white;
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header .nombre { font-weight: 700; font-size: 16px; }
+    header .zona   { font-size: 12px; opacity: 0.85; margin-top: 2px; }
+    #btn-salir {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .seccion-titulo {
+      padding: 16px 16px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Tarjeta de cliente */
+    .cliente-card {
+      background: white;
+      margin: 0 12px 10px;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      border-left: 5px solid #e0e0e0;
+      transition: border-color 0.2s;
+    }
+    .cliente-card.alerta   { border-left-color: #ef5350; }
+    .cliente-card.normal   { border-left-color: #ffa726; }
+    .cliente-card.ok       { border-left-color: #66bb6a; }
+    .cliente-card.visitado { border-left-color: #1a73e8; background: #f0f7ff; }
+
+    .cliente-nombre {
+      font-size: 17px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 4px;
+    }
+    .cliente-dir {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 8px;
+    }
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    .badge-rojo   { background: #ffebee; color: #c62828; }
+    .badge-naranja{ background: #fff8e1; color: #856404; }
+    .badge-verde  { background: #e8f5e9; color: #2e7d32; }
+    .badge-azul   { background: #e3f2fd; color: #1565c0; }
+    .badge-gris   { background: #f5f5f5; color: #555; }
+
+    .nota {
+      font-size: 13px;
+      color: #d32f2f;
+      font-weight: 600;
+      background: #ffebee;
+      border-radius: 6px;
+      padding: 6px 10px;
+      margin-bottom: 10px;
+    }
+
+    /* Botones de visita */
+    .btn-checkin {
+      width: 100%;
+      padding: 13px;
+      background: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-checkin:active { background: #1558b0; }
+    .btn-checkin:disabled { background: #b0c4e8; cursor: not-allowed; }
+    .btn-checkout {
+      width: 100%;
+      padding: 13px;
+      background: #e53935;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-checkout:active { background: #b71c1c; }
+
+    /* Timer de visita activa */
+    .visita-activa {
+      background: #e3f2fd;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: #1565c0;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .timer { font-size: 20px; font-weight: 800; font-family: monospace; }
+
+    /* Alerta de distancia */
+    .alerta-dist {
+      background: #fff8e1;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 13px;
+      color: #856404;
+      margin-bottom: 8px;
+    }
+
+    /* Estado global */
+    .cargando {
+      text-align: center;
+      padding: 40px 20px;
+      color: #888;
+      font-size: 15px;
+    }
+    .resumen {
+      background: white;
+      margin: 12px;
+      border-radius: 14px;
+      padding: 14px 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      display: flex;
+      justify-content: space-around;
+      text-align: center;
+    }
+    .resumen-item .num { font-size: 26px; font-weight: 800; color: #1a73e8; }
+    .resumen-item .lbl { font-size: 12px; color: #888; margin-top: 2px; }
+
+    /* Modal encuesta post-visita */
+    .modal-fondo {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .modal-fondo.abierto { display: flex; }
+    .modal {
+      background: white;
+      width: 100%;
+      max-width: 480px;
+      border-radius: 20px 20px 0 0;
+      padding: 22px 20px 28px;
+      animation: subir 0.25s ease;
+    }
+    @keyframes subir { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .modal h2 { font-size: 18px; color: #1a1a1a; margin-bottom: 4px; }
+    .modal .sub { font-size: 13px; color: #888; margin-bottom: 18px; }
+    .pregunta { font-size: 14px; font-weight: 700; color: #333; margin: 16px 0 8px; }
+    .opciones { display: flex; gap: 8px; }
+    .opcion {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      background: white;
+      font-size: 14px;
+      font-weight: 600;
+      color: #555;
+      cursor: pointer;
+      text-align: center;
+    }
+    .opcion.sel { border-color: #1a73e8; background: #e3f2fd; color: #1565c0; }
+    .modal input[type="number"], .modal textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 15px;
+      font-family: inherit;
+    }
+    .modal textarea { resize: vertical; min-height: 60px; }
+    #grupo-monto { display: none; }
+    .modal-botones { display: flex; gap: 10px; margin-top: 24px; }
+    .btn-omitir {
+      flex: 1; padding: 14px; border-radius: 10px;
+      border: 2px solid #e0e0e0; background: white;
+      font-size: 15px; font-weight: 700; color: #888; cursor: pointer;
+    }
+    .btn-guardar {
+      flex: 2; padding: 14px; border-radius: 10px; border: none;
+      background: #1a73e8; color: white; font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+    .btn-guardar:disabled { background: #b0c4e8; cursor: not-allowed; }
+
+    /* Botón y panel de sugerencias */
+    .btn-sugerencias {
+      width: 100%;
+      padding: 11px;
+      margin-bottom: 8px;
+      background: #fff8e1;
+      color: #8a6d00;
+      border: 1.5px solid #ffd54f;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-sugerencias:active { background: #fff0c2; }
+    #modal-sugerencias .modal { max-height: 85vh; overflow-y: auto; }
+    .sug-giro {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #1565c0;
+      background: #e3f2fd;
+      padding: 2px 10px;
+      border-radius: 20px;
+      margin-bottom: 6px;
+      text-transform: capitalize;
+    }
+    .sug-seccion { margin-top: 18px; }
+    .sug-h { font-size: 14px; font-weight: 800; color: #333; margin-bottom: 8px; }
+    .sug-fecha { font-size: 13px; color: #1a73e8; font-weight: 700; margin-bottom: 6px; }
+    .sug-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 12px;
+      border-radius: 8px;
+      background: #f5f5f5;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    .sug-item.alerta { background: #fff8e1; }
+    .sug-item.ok     { background: #e8f5e9; }
+    .sug-cant { font-size: 13px; font-weight: 700; color: #666; }
+    .sug-item.alerta .sug-cant { color: #c62828; }
+    .sug-item.ok .sug-cant     { color: #2e7d32; }
+    .sug-vacio { font-size: 13px; color: #999; padding: 6px 2px; }
+    .sug-cod {
+      display: inline-block;
+      font-family: monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: #1565c0;
+      background: #e3f2fd;
+      padding: 1px 6px;
+      border-radius: 5px;
+      margin-right: 6px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="nombre" id="hdr-nombre">Cargando...</div>
+    <div class="zona"   id="hdr-zona"></div>
+  </div>
+  <button id="btn-salir" onclick="cerrarSesion()">Salir</button>
+</header>
+
+<div id="contenido">
+  <div class="cargando">Cargando clientes...</div>
+</div>
+
+<!-- Modal: sugerencias antes de entrar -->
+<div class="modal-fondo" id="modal-sugerencias">
+  <div class="modal">
+    <h2 id="sug-titulo">Cliente</h2>
+    <div class="sug-giro" id="sug-giro"></div>
+    <div id="sug-contenido"></div>
+    <div class="modal-botones">
+      <button class="btn-guardar" style="flex:1" onclick="cerrarSugerencias()">Listo, entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: encuesta post-visita -->
+<div class="modal-fondo" id="modal-encuesta">
+  <div class="modal">
+    <h2>Visita terminada ✅</h2>
+    <div class="sub" id="enc-sub">Cuéntanos cómo te fue</div>
+
+    <div class="pregunta">¿Realizó pedido?</div>
+    <div class="opciones" id="enc-pedido">
+      <div class="opcion" data-val="si"  onclick="selPedido('si')">Sí</div>
+      <div class="opcion" data-val="no"  onclick="selPedido('no')">No</div>
+    </div>
+
+    <div id="grupo-monto">
+      <div class="pregunta">Monto aproximado ($)</div>
+      <input type="number" id="enc-monto" inputmode="decimal" placeholder="0.00" min="0">
+    </div>
+
+    <div class="pregunta">Nivel de interés del cliente</div>
+    <div class="opciones" id="enc-interes">
+      <div class="opcion" data-val="alto"  onclick="selInteres('alto')">Alto</div>
+      <div class="opcion" data-val="medio" onclick="selInteres('medio')">Medio</div>
+      <div class="opcion" data-val="bajo"  onclick="selInteres('bajo')">Bajo</div>
+    </div>
+
+    <div class="pregunta">Comentario (opcional)</div>
+    <textarea id="enc-comentario" placeholder="Notas de la visita..."></textarea>
+
+    <div class="modal-botones">
+      <button class="btn-omitir"  onclick="cerrarEncuesta()">Omitir</button>
+      <button class="btn-guardar" id="btn-enc-guardar" onclick="enviarEncuesta()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const token      = localStorage.getItem("token");
+  const nombre     = localStorage.getItem("nombre")      || "";
+  const vendedor_id = localStorage.getItem("vendedor_id") || "";
+
+  if (!token) window.location.href = "/static/login.html";
+
+  document.getElementById("hdr-nombre").textContent = nombre;
+
+  // visita activa en memoria: { clienteId, visitaId, horaInicio }
+  let visitaActiva = JSON.parse(localStorage.getItem("visitaActiva") || "null");
+  let timerId = null;
+
+  document.getElementById("hdr-zona").textContent =
+    localStorage.getItem("zona") || "";
+
+  // ── Utilidades ────────────────────────────────────────────
+  function headers() {
+    return { "Content-Type": "application/json", "X-Token": token };
+  }
+
+  function gps() {
+    return new Promise((ok, fail) => {
+      if (!navigator.geolocation) {
+        fail(new Error("GPS no disponible en este navegador."));
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(ok, fail,
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+    });
+  }
+
+  function badgeDias(dias, objetivo) {
+    if (dias === null || dias === undefined)
+      return '<span class="badge badge-gris">Sin visitas previas</span>';
+    if (dias > objetivo * 2)
+      return `<span class="badge badge-rojo">Hace ${dias} días</span>`;
+    if (dias > objetivo)
+      return `<span class="badge badge-naranja">Hace ${dias} días</span>`;
+    return `<span class="badge badge-verde">Hace ${dias} días</span>`;
+  }
+
+  function colorCard(dias, objetivo, estaVisitado) {
+    if (estaVisitado) return "visitado";
+    if (dias === null) return "";
+    if (dias > objetivo * 2) return "alerta";
+    if (dias > objetivo) return "normal";
+    return "ok";
+  }
+
+  function tiempoTranscurrido(horaInicio) {
+    const [h, m, s] = horaInicio.split(":").map(Number);
+    const inicio = new Date();
+    inicio.setHours(h, m, s, 0);
+    const diff = Math.max(0, Math.floor((Date.now() - inicio) / 1000));
+    const mm = String(Math.floor(diff / 60)).padStart(2, "0");
+    const ss = String(diff % 60).padStart(2, "0");
+    return `${mm}:${ss}`;
+  }
+
+  // ── Render ────────────────────────────────────────────────
+  function render(clientes) {
+    const cont = document.getElementById("contenido");
+
+    const visitasHoy    = clientes.filter(c => c.visita_activa_id || c.visitado_hoy).length;
+    const sinVisitar    = clientes.filter(c => (c.dias_sin_visita || 999) > (c.dias_objetivo || 7)).length;
+    const enVisita      = visitaActiva ? 1 : 0;
+
+    cont.innerHTML = `
+      <div class="resumen">
+        <div class="resumen-item"><div class="num">${clientes.length}</div><div class="lbl">Clientes</div></div>
+        <div class="resumen-item"><div class="num" style="color:#4caf50">${visitasHoy}</div><div class="lbl">Visitados hoy</div></div>
+        <div class="resumen-item"><div class="num" style="color:#ef5350">${sinVisitar}</div><div class="lbl">Por visitar</div></div>
+      </div>
+      <div class="seccion-titulo">Mis clientes</div>
+    `;
+
+    clientes.forEach(c => {
+      const esActivo = visitaActiva && visitaActiva.clienteId === c.id;
+      const color = colorCard(c.dias_sin_visita, c.dias_objetivo, esActivo || c.visitado_hoy);
+
+      const divCard = document.createElement("div");
+      divCard.className = `cliente-card ${color}`;
+      divCard.id = `card-${c.id}`;
+
+      let html = `
+        <div class="cliente-nombre">${c.nombre}</div>
+        <div class="cliente-dir">📍 ${c.direccion || "Sin dirección"}</div>
+        <div class="badges">
+          ${badgeDias(c.dias_sin_visita, c.dias_objetivo)}
+          ${c.lat ? '<span class="badge badge-gris">Ubicación registrada</span>' : '<span class="badge badge-naranja">Sin coordenadas</span>'}
+        </div>
+      `;
+
+      if (c.notas) {
+        html += `<div class="nota">⚠️ ${c.notas}</div>`;
+      }
+
+      html += `
+        <button class="btn-sugerencias" onclick="verSugerencias(${c.id})">
+          💡 Antes de entrar
+        </button>
+      `;
+
+      if (esActivo) {
+        html += `
+          <div class="visita-activa">
+            <span>En visita desde ${visitaActiva.horaInicio}</span>
+            <span class="timer" id="timer-${c.id}">00:00</span>
+          </div>
+          <button class="btn-checkout" onclick="terminarVisita(${c.id}, ${visitaActiva.visitaId})">
+            ✅ Terminar visita
+          </button>
+        `;
+      } else {
+        html += `
+          <button class="btn-checkin" id="btn-${c.id}" onclick="iniciarVisita(${c.id})">
+            📍 Iniciar visita
+          </button>
+        `;
+      }
+
+      divCard.innerHTML = html;
+      cont.appendChild(divCard);
+    });
+
+    // Iniciar timer si hay visita activa
+    if (visitaActiva) {
+      clearInterval(timerId);
+      timerId = setInterval(() => {
+        const el = document.getElementById(`timer-${visitaActiva.clienteId}`);
+        if (el) el.textContent = tiempoTranscurrido(visitaActiva.horaInicio);
+      }, 1000);
+    }
+  }
+
+  // ── Check-in ──────────────────────────────────────────────
+  async function iniciarVisita(clienteId) {
+    const btn = document.getElementById(`btn-${clienteId}`);
+    btn.disabled = true;
+    btn.textContent = "Obteniendo GPS...";
+
+    try {
+      const pos = await gps();
+      const { latitude: lat, longitude: lon } = pos.coords;
+
+      const resp = await fetch("/api/checkin", {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({ cliente_id: clienteId, lat, lon })
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json();
+        throw new Error(err.detail);
+      }
+
+      const datos = await resp.json();
+      visitaActiva = {
+        clienteId,
+        visitaId: datos.visita_id,
+        horaInicio: datos.hora_inicio
+      };
+      localStorage.setItem("visitaActiva", JSON.stringify(visitaActiva));
+
+      if (datos.alerta_distancia) {
+        alert(`⚠️ Estás a ${datos.distancia_metros}m del cliente.\n¿Confirmas que estás en la ubicación correcta?`);
+      }
+
+      cargarClientes();
+
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = "📍 Iniciar visita";
+      alert("Error: " + err.message);
+    }
+  }
+
+  // ── Check-out ─────────────────────────────────────────────
+  async function terminarVisita(clienteId, visitaId) {
+    if (!confirm("¿Terminar la visita ahora?")) return;
+
+    let lat = null, lon = null;
+    try {
+      const pos = await gps();
+      lat = pos.coords.latitude;
+      lon = pos.coords.longitude;
+    } catch (_) { /* GPS opcional al salir */ }
+
+    try {
+      const resp = await fetch(`/api/checkout/${visitaId}`, {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({ lat, lon })
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json();
+        throw new Error(err.detail);
+      }
+
+      const datos = await resp.json();
+      clearInterval(timerId);
+      visitaActiva = null;
+      localStorage.removeItem("visitaActiva");
+
+      const cardNombre = document.querySelector(`#card-${clienteId} .cliente-nombre`);
+      const nombreCliente = cardNombre ? cardNombre.textContent : "";
+      cargarClientes();
+      abrirEncuesta(visitaId, nombreCliente, datos.duracion_min);
+
+    } catch (err) {
+      alert("Error al terminar: " + err.message);
+    }
+  }
+
+  // ── Cargar clientes ───────────────────────────────────────
+  async function cargarClientes() {
+    try {
+      const resp = await fetch("/api/mis-clientes", { headers: headers() });
+      if (resp.status === 401) {
+        localStorage.clear();
+        window.location.href = "/static/login.html";
+        return;
+      }
+      const clientes = await resp.json();
+
+      // Sincronizar visita activa desde el servidor
+      if (visitaActiva) {
+        const c = clientes.find(x => x.id === visitaActiva.clienteId);
+        if (!c || !c.visita_activa_id) {
+          visitaActiva = null;
+          localStorage.removeItem("visitaActiva");
+        }
+      }
+
+      render(clientes);
+    } catch (err) {
+      document.getElementById("contenido").innerHTML =
+        `<div class="cargando">Error al cargar. ¿Hay conexión con el servidor?<br><br><button onclick="cargarClientes()" style="padding:10px 20px;border-radius:8px;border:none;background:#1a73e8;color:white;font-size:15px;cursor:pointer">Reintentar</button></div>`;
+    }
+  }
+
+  // ── Sugerencias antes de entrar ───────────────────────────
+  async function verSugerencias(clienteId) {
+    const fondo = document.getElementById('modal-sugerencias');
+    const cont  = document.getElementById('sug-contenido');
+    document.getElementById('sug-giro').textContent = '';
+    document.getElementById('sug-titulo').textContent = 'Cliente';
+    cont.innerHTML = '<div class="sug-vacio">Cargando sugerencias...</div>';
+    fondo.classList.add('abierto');
+
+    try {
+      const resp = await fetch(`/api/sugerencias/${clienteId}`, { headers: headers() });
+      if (!resp.ok) throw new Error('No se pudo cargar');
+      const d = await resp.json();
+      document.getElementById('sug-titulo').textContent = d.cliente;
+      document.getElementById('sug-giro').textContent = d.giro || '';
+      cont.innerHTML = renderSugerencias(d);
+    } catch (err) {
+      cont.innerHTML = `<div class="sug-vacio">Error: ${err.message}</div>`;
+    }
+  }
+
+  function renderSugerencias(d) {
+    let html = '';
+    const cod = c => c ? `<span class="sug-cod">${c}</span>` : '';
+
+    // Última compra
+    html += `<div class="sug-seccion"><div class="sug-h">🧾 Última compra</div>`;
+    if (d.ultima_compra) {
+      const u = d.ultima_compra;
+      html += `<div class="sug-fecha">Hace ${u.dias} días · $${u.total.toFixed(2)}</div>`;
+      u.items.forEach(it => {
+        html += `<div class="sug-item"><span>${cod(it.codigo)}${it.nombre}</span><span class="sug-cant">x${it.cantidad}</span></div>`;
+      });
+    } else {
+      html += `<div class="sug-vacio">Sin compras registradas — cliente nuevo</div>`;
+    }
+    html += `</div>`;
+
+    // Ya toca resurtir (por frecuencia de compra)
+    html += `<div class="sug-seccion"><div class="sug-h">🔁 Ofrécele — ya toca resurtir</div>`;
+    if (d.resurtir && d.resurtir.length) {
+      d.resurtir.forEach(r => {
+        const tag = r.estado === 'vencido' ? 'alerta' : 'ok';
+        const etiqueta = r.estado === 'vencido' ? `vencido` : `pronto`;
+        html += `
+          <div class="sug-item ${tag}">
+            <span>${cod(r.codigo)}${r.producto}<br>
+              <small style="color:#888">compra ~${r.cantidad_tipica} ${r.unidad || 'pz'} cada ${r.cada_dias} días · hace ${r.hace_dias}</small>
+            </span>
+            <span class="sug-cant">${etiqueta}</span>
+          </div>`;
+      });
+    } else {
+      html += `<div class="sug-vacio">Nada por resurtir ahora 👍</div>`;
+    }
+    html += `</div>`;
+
+    // Dejó de pedir
+    html += `<div class="sug-seccion"><div class="sug-h">⏰ Dejó de pedir</div>`;
+    if (d.dejo_de_pedir && d.dejo_de_pedir.length) {
+      d.dejo_de_pedir.forEach(s => {
+        const extra = s.cada_dias ? ` · pedía cada ${s.cada_dias}d` : '';
+        html += `<div class="sug-item"><span>${cod(s.codigo)}${s.producto}</span><span class="sug-cant">hace ${s.hace_dias}d${extra}</span></div>`;
+      });
+    } else {
+      html += `<div class="sug-vacio">—</div>`;
+    }
+    html += `</div>`;
+
+    return html;
+  }
+
+  function cerrarSugerencias() {
+    document.getElementById('modal-sugerencias').classList.remove('abierto');
+  }
+
+  // ── Encuesta post-visita ──────────────────────────────────
+  let encVisitaId = null;
+  let encPedido   = null;   // 'si' | 'no'
+  let encInteres  = null;   // 'alto' | 'medio' | 'bajo'
+
+  function selPedido(v) {
+    encPedido = v;
+    document.querySelectorAll('#enc-pedido .opcion').forEach(o =>
+      o.classList.toggle('sel', o.dataset.val === v));
+    document.getElementById('grupo-monto').style.display = (v === 'si') ? 'block' : 'none';
+  }
+
+  function selInteres(v) {
+    encInteres = v;
+    document.querySelectorAll('#enc-interes .opcion').forEach(o =>
+      o.classList.toggle('sel', o.dataset.val === v));
+  }
+
+  function abrirEncuesta(visitaId, nombreCliente, duracion) {
+    encVisitaId = visitaId;
+    encPedido = null;
+    encInteres = null;
+    document.querySelectorAll('#modal-encuesta .opcion').forEach(o => o.classList.remove('sel'));
+    document.getElementById('grupo-monto').style.display = 'none';
+    document.getElementById('enc-monto').value = '';
+    document.getElementById('enc-comentario').value = '';
+    document.getElementById('enc-sub').textContent =
+      `${nombreCliente || 'Cliente'} · ${duracion} min`;
+    document.getElementById('modal-encuesta').classList.add('abierto');
+  }
+
+  function cerrarEncuesta() {
+    document.getElementById('modal-encuesta').classList.remove('abierto');
+    encVisitaId = null;
+  }
+
+  async function enviarEncuesta() {
+    if (!encVisitaId) return;
+    if (!encPedido) { alert('Indica si el cliente realizó pedido.'); return; }
+
+    const btn = document.getElementById('btn-enc-guardar');
+    btn.disabled = true;
+    btn.textContent = 'Guardando...';
+
+    const montoRaw = document.getElementById('enc-monto').value;
+    const body = {
+      hizo_pedido: encPedido === 'si',
+      monto: (encPedido === 'si' && montoRaw) ? parseFloat(montoRaw) : null,
+      interes: encInteres,
+      comentario: document.getElementById('enc-comentario').value.trim()
+    };
+
+    try {
+      const resp = await fetch(`/api/encuesta/${encVisitaId}`, {
+        method: 'POST', headers: headers(), body: JSON.stringify(body)
+      });
+      if (!resp.ok) {
+        const err = await resp.json();
+        throw new Error(err.detail || 'No se pudo guardar');
+      }
+      cerrarEncuesta();
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Guardar';
+    }
+  }
+
+  function cerrarSesion() {
+    if (confirm("¿Cerrar sesión?")) {
+      localStorage.clear();
+      window.location.href = "/static/login.html";
+    }
+  }
+
+  // Iniciar
+  cargarClientes();
+</script>
+</body>
+</html>
