@@ -353,6 +353,10 @@
 
   // visita activa en memoria: { clienteId, visitaId, horaInicio }
   let visitaActiva = JSON.parse(localStorage.getItem("visitaActiva") || "null");
+  if (visitaActiva && !visitaActiva.inicioMs) {
+    visitaActiva.inicioMs = Date.now();
+    localStorage.setItem("visitaActiva", JSON.stringify(visitaActiva));
+  }
   let timerId = null;
 
   document.getElementById("hdr-zona").textContent =
@@ -392,14 +396,12 @@
     return "ok";
   }
 
-  function tiempoTranscurrido(horaInicio) {
-    const [h, m, s] = horaInicio.split(":").map(Number);
-    const inicio = new Date();
-    inicio.setHours(h, m, s, 0);
-    const diff = Math.max(0, Math.floor((Date.now() - inicio) / 1000));
-    const mm = String(Math.floor(diff / 60)).padStart(2, "0");
+  function tiempoTranscurrido(inicioMs) {
+    const diff = Math.max(0, Math.floor((Date.now() - inicioMs) / 1000));
+    const hh = Math.floor(diff / 3600);
+    const mm = String(Math.floor((diff % 3600) / 60)).padStart(2, "0");
     const ss = String(diff % 60).padStart(2, "0");
-    return `${mm}:${ss}`;
+    return hh > 0 ? `${hh}:${mm}:${ss}` : `${mm}:${ss}`;
   }
 
   // ── Render ────────────────────────────────────────────────
@@ -407,7 +409,11 @@
     const cont = document.getElementById("contenido");
 
     const visitasHoy    = clientes.filter(c => c.visita_activa_id || c.visitado_hoy).length;
-    const sinVisitar    = clientes.filter(c => (c.dias_sin_visita || 999) > (c.dias_objetivo || 7)).length;
+    const sinVisitar    = clientes.filter(c => {
+      if (c.visita_activa_id || c.visitado_hoy) return false;   // en visita o ya visitado hoy → no cuenta
+      if (c.dias_sin_visita == null) return true;                // nunca visitado → falta
+      return c.dias_sin_visita > (c.dias_objetivo || 7);         // vencido por días
+    }).length;
     const enVisita      = visitaActiva ? 1 : 0;
 
     cont.innerHTML = `
@@ -449,7 +455,7 @@
       if (esActivo) {
         html += `
           <div class="visita-activa">
-            <span>En visita desde ${visitaActiva.horaInicio}</span>
+            <span>En visita desde ${new Date(visitaActiva.inicioMs).toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'})}</span>
             <span class="timer" id="timer-${c.id}">00:00</span>
           </div>
           <button class="btn-checkout" onclick="terminarVisita(${c.id}, ${visitaActiva.visitaId})">
@@ -471,10 +477,12 @@
     // Iniciar timer si hay visita activa
     if (visitaActiva) {
       clearInterval(timerId);
-      timerId = setInterval(() => {
+      const pintarTimer = () => {
         const el = document.getElementById(`timer-${visitaActiva.clienteId}`);
-        if (el) el.textContent = tiempoTranscurrido(visitaActiva.horaInicio);
-      }, 1000);
+        if (el) el.textContent = tiempoTranscurrido(visitaActiva.inicioMs);
+      };
+      pintarTimer();
+      timerId = setInterval(pintarTimer, 1000);
     }
   }
 
@@ -503,7 +511,8 @@
       visitaActiva = {
         clienteId,
         visitaId: datos.visita_id,
-        horaInicio: datos.hora_inicio
+        horaInicio: datos.hora_inicio,
+        inicioMs: Date.now()
       };
       localStorage.setItem("visitaActiva", JSON.stringify(visitaActiva));
 
